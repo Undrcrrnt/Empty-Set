@@ -1,0 +1,11 @@
+<resources>
+    <style name="Theme.EmptySet" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#FF050807</item>
+        <item name="android:navigationBarColor">#FF050807</item>
+        <item name="android:windowBackground">#FF050807</item>
+        <item name="android:colorBackground">#FF050807</item>
+        <item name="android:textColor">#FF7CFF9A</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:forceDarkAllowed">true</item>
+    </style>
+</resources>

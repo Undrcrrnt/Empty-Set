@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Empty Set</string>
+    <string name="monitor_channel_name">Empty Set monitor</string>
+    <string name="alert_channel_name">Incoming Deauthentication</string>
+    <string name="incoming_deauthentication">Incoming Deauthentication</string>
+    <string name="authorized_use">Receive-only detector. Use only on networks you own or are authorized to monitor.</string>
+</resources>

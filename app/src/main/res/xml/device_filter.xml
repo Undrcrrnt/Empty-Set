@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- TP-Link Archer T2U Plus (RTL8821AU) -->
+    <usb-device vendor-id="9047" product-id="288" />
+    <!-- Generic Realtek 8821AU -->
+    <usb-device vendor-id="3034" product-id="2065" />
+    <usb-device vendor-id="3034" product-id="2081" />
+</resources>
