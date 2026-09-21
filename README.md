@@ -4,7 +4,9 @@ Receive-only deauthentication monitor for Android.
 
 Empty Set watches 2.4 GHz and 5 GHz Wi-Fi for deauthentication and disassociation frames, then raises an **Incoming Deauthentication** alert. It never transmits, never injects packets, and never sends deauth frames. Use it only on networks you own or are authorized to monitor.
 
-![Empty Set artwork](docs/artwork/empty-set-braces.jpg)
+<p align="center">
+  <img src="docs/artwork/empty-set-icon.png" width="160" alt="Empty Set logo" />
+</p>
 
 ## Screenshots
 
