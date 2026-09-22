@@ -53,6 +53,8 @@ Current capture path:
 | Adapter | Chip | USB ID |
 | --- | --- | --- |
 | TP-Link Archer T2U Plus | RTL8821AU | `2357:0120` |
+| Panda PAU0A | MediaTek MT7610U | `0e8d:7610` |
+| Panda PAU0B | MediaTek MT7610U | `0e8d:7610` |
 
 You also need:
 
@@ -62,13 +64,14 @@ You also need:
 
 If the stick first appears as a flash drive (Realtek ZeroCD, `0bda:1a2b`), unplug, wait, and replug until it enumerates as `2357:0120`.
 
-Panda Wireless PAU0A (MediaTek MT7610U) support is planned. It needs a separate receive-only backend; it cannot reuse the T2U driver.
+The Panda PAU0A and PAU0B share the same receive-only MT7610U backend (not the T2U driver). Select the matching name on RADIO, grant USB, then Start Monitor.
 
 ## How capture works
 
 Android has no public 802.11 monitor-mode API. Empty Set opens the USB device as host, hands the file descriptor to a receive-only userspace driver, loads firmware, hops channels, and parses deauth/disassoc frames.
 
 - [OpenIPC devourer](https://github.com/OpenIPC/devourer) (GPL-2.0), Jaguar1 / RTL8821AU only
+- Receive-only MT7610U path from Linux [mt76x0u](https://github.com/torvalds/linux/tree/master/drivers/net/wireless/mediatek/mt76/mt76x0) (GPL-2.0), plus `mediatek/mt7610u.bin` (MediaTek redistributable firmware)
 - [libusb](https://github.com/libusb/libusb) 1.0.27 (LGPL-2.1), linked shared
 
 No root. Transmit and packet-injection APIs are not used.
@@ -91,8 +94,12 @@ app\build\outputs\apk\debug\app-debug.apk
 
 Empty Set is **GNU GPL v2** because it links devourer. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
-libusb remains LGPL-2.1 (`third_party/libusb`). Corresponding source for devourer is vendored in `third_party/devourer`.
+libusb remains LGPL-2.1 (`third_party/libusb`). Corresponding source for devourer is vendored in `third_party/devourer`. The PAU0A path follows Linux mt76x0u (GPL-2.0). `mediatek/mt7610u.bin` is MediaTek redistributable firmware (`licenses/LICENCE.ralink_a_mediatek_company_firmware`).
 
 ## Authorized use
 
 This is a detector, not an attack tool. Do not use it to disrupt other people’s networks.
+
+---
+
+Cursor AI was used in production.

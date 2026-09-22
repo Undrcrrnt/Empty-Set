@@ -194,9 +194,28 @@ class CaptureLog(context: Context) {
         exportCsvLocked(attemptId)
     }
 
+    fun deleteAttempt(id: String) {
+        io.execute {
+            val stamp = synchronized(lock) {
+                val attempt = attempts.firstOrNull { it.id == id } ?: return@synchronized null
+                if (openAttempt?.id == id) openAttempt = null
+                attempts.removeAll { it.id == id }
+                frames.removeAll { it.attemptId == id }
+                persistLocked()
+                framesSincePersist = 0
+                publishAttemptsLocked()
+                publishFramesLocked()
+                fileStamp(attempt.startedAtMs)
+            }
+            stamp?.let { deleteUserFiles(it) }
+        }
+    }
+
     fun clear() {
         io.execute {
+            val stamps: List<String>
             synchronized(lock) {
+                stamps = attempts.map { fileStamp(it.startedAtMs) }
                 frames.clear()
                 attempts.clear()
                 openAttempt = null
@@ -204,6 +223,7 @@ class CaptureLog(context: Context) {
                 publishAttemptsLocked()
                 publishFramesLocked()
             }
+            stamps.forEach { deleteUserFiles(it) }
         }
     }
 
@@ -345,6 +365,37 @@ class CaptureLog(context: Context) {
             values.clear()
             values.put(MediaStore.Downloads.IS_PENDING, 0)
             resolver.update(uri, values, null, null)
+        }
+    }
+
+    private fun deleteUserFiles(stamp: String) {
+        val jsonName = "Deauth Notification $stamp.json"
+        val csvName = "Deauth Notification $stamp.csv"
+        runCatching { File(recordingsDir, jsonName).delete() }
+        runCatching { File(recordingsDir, csvName).delete() }
+        deleteFromDownloads(jsonName)
+        deleteFromDownloads(csvName)
+    }
+
+    private fun deleteFromDownloads(name: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        runCatching {
+            val resolver = app.contentResolver
+            val existing = resolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Downloads._ID),
+                "${MediaStore.Downloads.DISPLAY_NAME}=?",
+                arrayOf(name),
+                null
+            )
+            val existingId = existing?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getLong(0) else null
+            } ?: return@runCatching
+            val uri = android.content.ContentUris.withAppendedId(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                existingId
+            )
+            resolver.delete(uri, null, null)
         }
     }
 

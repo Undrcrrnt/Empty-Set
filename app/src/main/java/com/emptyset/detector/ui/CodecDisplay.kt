@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import com.emptyset.detector.alert.AlertSettings
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
@@ -51,7 +52,9 @@ fun channelToDisplayMhz(channel: Int?): Float = when {
 fun CodecFrequencyDisplay(
     modifier: Modifier = Modifier,
     channel: Int? = null,
-    compact: Boolean = false
+    compact: Boolean = false,
+    headline: String = AlertSettings.DEFAULT_MESSAGE,
+    senderName: String = AlertSettings.DEFAULT_SENDER
 ) {
     val targetMhz = channelToDisplayMhz(channel)
     var shown by remember(targetMhz) { mutableStateOf(targetMhz) }
@@ -191,7 +194,7 @@ fun CodecFrequencyDisplay(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                "INCOMING",
+                headline.uppercase(),
                 color = Alert.copy(alpha = blink),
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -225,16 +228,9 @@ fun CodecFrequencyDisplay(
                 fontSize = if (compact) 11.sp else 14.sp
             )
             Spacer(Modifier.height(4.dp))
-            Text(
-                "DEAUTHENTICATION",
-                color = Alert,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = if (compact) 12.sp else 16.sp
-            )
             if (!compact) {
                 Text(
-                    "EMPTY SET  ·  RECEIVE ONLY",
+                    "${senderName.uppercase()}  ·  RECEIVE ONLY",
                     color = Dim,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp

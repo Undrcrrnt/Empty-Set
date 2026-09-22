@@ -15,13 +15,29 @@ object UsbDeviceFinder {
                     device = device,
                     canCapture = NativeRx.available()
                 )
-                RadioKind.UNKNOWN -> RadioInfo(
-                    kind = RadioKind.UNKNOWN,
-                    title = device.productName ?: "USB device",
-                    detail = "%04x:%04x".format(device.vendorId, device.productId),
+                RadioKind.PAU0A -> RadioInfo(
+                    kind = RadioKind.PAU0A,
+                    title = "Panda PAU0A",
+                    detail = "MT7610U receive-only  %04x:%04x".format(device.vendorId, device.productId),
                     device = device,
-                    canCapture = false
+                    canCapture = NativePau0a.available()
                 )
+                RadioKind.PAU0B -> RadioInfo(
+                    kind = RadioKind.PAU0B,
+                    title = "Panda PAU0B",
+                    detail = "MT7610U receive-only  %04x:%04x".format(device.vendorId, device.productId),
+                    device = device,
+                    canCapture = NativePau0a.available()
+                )
+                RadioKind.UNKNOWN -> {
+                    RadioInfo(
+                        kind = RadioKind.UNKNOWN,
+                        title = device.productName ?: "USB device",
+                        detail = "%04x:%04x".format(device.vendorId, device.productId),
+                        device = device,
+                        canCapture = false
+                    )
+                }
             }
         }
     }

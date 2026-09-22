@@ -40,7 +40,9 @@ object Ieee80211 {
         val subtype = (fc shr 4) and 0xF
         if (type != TYPE_MGMT) return null
         if (subtype != SUBTYPE_DEAUTH && subtype != SUBTYPE_DISASSOC) return null
+        if ((raw[offset].toInt() and 0x03) != 0) return null
         val reason = if (raw.size - offset >= 26) u16(raw, offset + 24) else null
+        if (reason == null || reason == 0 || reason > 64) return null
         return MgmtEvent(
             subtype = subtype,
             channelHint = channelHint,
@@ -69,11 +71,8 @@ object Ieee80211 {
         else -> "reason $code"
     }
 
-    fun bandOf(channel: Int?): String = when {
-        channel == null -> "unknown"
-        channel >= 36 -> "5 GHz"
-        else -> "2.4 GHz"
-    }
+    fun bandOf(channel: Int?, band: WifiBand? = null): String =
+        band?.label ?: WifiBand.infer(channel).label
 
     private fun looksLikeRadiotap(raw: ByteArray): Boolean =
         raw.size >= 8 && raw[0] == 0.toByte() && raw[1] == 0.toByte()

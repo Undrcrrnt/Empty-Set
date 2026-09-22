@@ -55,25 +55,25 @@ private val sections = listOf(
         "Empty Set is a receive-only deauthentication monitor. It never transmits, never injects packets, and never sends deauth frames. Use it only on networks you own or are authorized to watch.",
     "What you need" to
         "1. An Android phone with USB-C OTG (USB host).\n" +
-        "2. A TP-Link Archer T2U Plus (chip RTL8821AU, USB id 2357:0120).\n" +
+        "2. A supported USB adapter: TP-Link Archer T2U Plus (RTL8821AU, 2357:0120), Panda PAU0A, or Panda PAU0B (MT7610U, 0e8d:7610).\n" +
         "3. A USB-C OTG adapter. If the phone cannot power the dongle, use a powered USB hub.\n" +
         "4. This APK installed, with Notifications and USB permission allowed.",
     "First-run on the phone" to
-        "Install the APK. Open Empty Set. Allow notifications. On Android 14+, also allow full-screen / lock-screen alerts so Incoming Deauthentication can appear over the lock screen. Plug in the T2U Plus, accept the USB prompt, then tap Start Monitor.",
+        "Install the APK. Open Empty Set. Allow notifications. On Android 14+, also allow full-screen / lock-screen alerts so Incoming Deauthentication can appear over the lock screen. On RADIO pick the adapter (T2U Plus, Panda PAU0A, or Panda PAU0B). Plug it in, accept the USB prompt, then tap Start Monitor.",
     "Driver status" to
-        "This APK includes a receive-only RTL8821AU userspace driver (OpenIPC devourer, GPLv2, Jaguar1 only) plus libusb. After you grant USB access, Empty Set wraps the adapter file descriptor, loads firmware, puts the T2U Plus in monitor mode, hops 2.4 and 5 GHz, and feeds deauth/disassoc frames into the parser. No root. Transmit and packet injection are not used.\n\n" +
+        "This APK includes a receive-only RTL8821AU userspace driver (OpenIPC devourer, GPLv2, Jaguar1 only), a receive-only MT7610U path for the Panda PAU0A and PAU0B (Linux mt76x0u sequences, GPLv2) plus libusb and mt7610u.bin. After you grant USB access, Empty Set wraps the adapter file descriptor, loads firmware, hops 2.4 and 5 GHz, and feeds deauth/disassoc frames into the parser. No root. Transmit and packet injection are not used.\n\n" +
         "The phone must be 64-bit (arm64). A powered OTG hub helps if the dongle browns out.",
     "If capture does not start" to
-        "1. Unplug/replug the T2U and accept the USB permission prompt, then tap Start Monitor again.\n" +
+        "1. Unplug/replug the adapter and accept the USB permission prompt, then tap Start Monitor again.\n" +
         "2. Use a powered USB hub if the adapter disconnects when firmware loads.\n" +
         "3. If the stick first appears as a flash drive (Realtek ZeroCD, 0bda:1a2b), unplug, wait, replug until it is 2357:0120.\n" +
         "4. This build only ships arm64-v8a native code.",
     "Lock-screen alerts" to
-        "Settings → Alerts. Choose built-in tone, a phone ringtone, a custom audio file, or vibration only. Incoming Deauthentication is shown on the lock screen via a high-priority full-screen notification. If the app is already open, it stays usable and the lock-screen overlay is not shown. If the overlay does not appear on a locked phone, enable full-screen notifications for Empty Set in Android system settings.",
+        "Alerts lets you edit the lock-screen message and the name shown as the sending app. Choose built-in tone, a phone ringtone, a custom audio file, or vibration only. If the app is already open, it stays usable and the lock-screen overlay is not shown. If the overlay does not appear on a locked phone, enable full-screen notifications for Empty Set in Android system settings.",
     "Recordings" to
         "Each detected attack is written as Deauth Notification plus the date and time. JSON and CSV copies go to Downloads and to Android/data/com.emptyset.detector/files/Documents/recordings. Records inside the app lists the same attempts.",
     "ZeroCD / flash-drive mode" to
         "Some Realtek sticks first appear as a USB drive with a Windows installer. Unplug, wait, replug. If it still is not 2357:0120, a USB mode switch is required before Empty Set can claim it.",
     "License" to
-        "Devourer is GNU GPL v2. A build that links it must keep Empty Set GPL and include source. This receive-only app does not include packet injection."
+        "Devourer and the MT7610U path are GNU GPL v2. mt7610u.bin is MediaTek redistributable firmware. A build that links devourer must keep Empty Set GPL and include source. This receive-only app does not include packet injection."
 )

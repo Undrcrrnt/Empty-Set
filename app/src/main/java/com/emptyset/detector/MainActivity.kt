@@ -10,29 +10,39 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.emptyset.detector.alert.AlertSettings
 import com.emptyset.detector.alert.IncomingAlertActivity
 import com.emptyset.detector.log.CaptureLog
-import com.emptyset.detector.radio.RadioKind
+import com.emptyset.detector.radio.RadioCatalog
+import com.emptyset.detector.radio.RadioSelection
 import com.emptyset.detector.radio.UsbDeviceFinder
+import com.emptyset.detector.radio.UsbIds
 import com.emptyset.detector.service.MonitorService
+import com.emptyset.detector.ui.AboutScreen
 import com.emptyset.detector.ui.AttemptDetailScreen
 import com.emptyset.detector.ui.EmptySetTheme
 import com.emptyset.detector.ui.HistoryScreen
+import com.emptyset.detector.ui.MenuScreen
 import com.emptyset.detector.ui.MonitorScreen
+import com.emptyset.detector.ui.RadioScreen
 import com.emptyset.detector.ui.SettingsScreen
 import com.emptyset.detector.ui.SetupScreen
+import com.emptyset.detector.ui.StickyAlertBar
 import com.emptyset.detector.ui.TitleScreen
 
 class MainActivity : ComponentActivity() {
     private val settings by lazy { AlertSettings(this) }
+    private val radioSelection by lazy { RadioSelection(this) }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -82,6 +92,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            splashScreen.setOnExitAnimationListener { it.remove() }
+        }
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -104,6 +117,14 @@ class MainActivity : ComponentActivity() {
                     }
                     return@EmptySetTheme
                 }
+                Column(modifier = Modifier.fillMaxSize()) {
+                    if (state.alertHeld) {
+                        StickyAlertBar(
+                            title = settings.lockScreenMessage,
+                            detail = state.alertSummary,
+                            onDismiss = { MonitorStore.dismissHeldAlert() }
+                        )
+                    }
                 when (screen) {
                     "history" -> HistoryScreen(
                         attempts = attempts,
@@ -114,6 +135,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onExportJson = { export(CaptureLog.exportFileName("json"), log.exportJson()) },
                         onExportCsv = { export(CaptureLog.exportFileName("csv"), log.exportCsv()) },
+                        onDelete = { id -> log.deleteAttempt(id) },
                         onClear = { log.clear() }
                     )
                     "detail" -> {
@@ -130,19 +152,31 @@ class MainActivity : ComponentActivity() {
                             onExportCsv = {
                                 val started = attempts.firstOrNull { it.id == id }?.startedAtMs
                                 export(CaptureLog.exportFileName("csv", started ?: System.currentTimeMillis()), log.exportCsv(id))
+                            },
+                            onDelete = {
+                                if (id != null) log.deleteAttempt(id)
+                                openId = null
+                                screen = "history"
                             }
                         )
                     }
+                    "menu" -> MenuScreen(
+                        onBack = { screen = "monitor" },
+                        onOpenAlerts = { screen = "settings" },
+                        onOpenSetup = { screen = "setup" },
+                        onOpenAbout = { screen = "about" }
+                    )
+                    "about" -> AboutScreen(onBack = { screen = "menu" })
                     "settings" -> {
                         SettingsScreen(
                             settings = settings,
                             revision = alertTick,
-                            onBack = { screen = "monitor" },
+                            onBack = { screen = "menu" },
                             onPickRingtone = {
                                 ringtonePicker.launch(
                                     Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
                                         .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALL)
-                                        .putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Incoming Deauthentication")
+                                        .putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, settings.lockScreenMessage)
                                         .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
                                 )
                             },
@@ -153,18 +187,55 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
-                    "setup" -> SetupScreen(onBack = { screen = "monitor" })
+                    "radio" -> {
+                        var selectedRadioId by remember { mutableStateOf(radioSelection.selectedId) }
+                        var band24 by remember { mutableStateOf(radioSelection.band24) }
+                        var band5 by remember { mutableStateOf(radioSelection.band5) }
+                        var band6 by remember { mutableStateOf(radioSelection.band6) }
+                        RadioScreen(
+                            options = RadioCatalog.options,
+                            selectedId = selectedRadioId,
+                            onSelect = { id ->
+                                radioSelection.selectedId = id
+                                selectedRadioId = id
+                                refreshRadios()
+                            },
+                            band24 = band24,
+                            band5 = band5,
+                            band6 = band6,
+                            onBand24 = {
+                                radioSelection.band24 = it
+                                band24 = radioSelection.band24
+                            },
+                            onBand5 = {
+                                radioSelection.band5 = it
+                                band5 = radioSelection.band5
+                            },
+                            onBand6 = {
+                                radioSelection.band6 = it
+                                band6 = radioSelection.band6
+                            },
+                            onBack = { screen = "monitor" },
+                            onOpenSetup = { screen = "setup" }
+                        )
+                    }
+                    "setup" -> SetupScreen(onBack = { screen = "menu" })
                     else -> MonitorScreen(
                         state = state,
                         recordedCount = attempts.size,
+                        alertTitle = settings.lockScreenMessage,
                         onToggle = {
                             if (state.running) stopMonitor() else startMonitor()
                         },
                         onSilence = { silenceAlert() },
                         onOpenHistory = { screen = "history" },
-                        onOpenSettings = { screen = "settings" },
-                        onOpenSetup = { screen = "setup" }
+                        onOpenRadio = { screen = "radio" },
+                        onLogoClick = { screen = "menu" },
+                        onExportLog = {
+                            export(MonitorStore.eventLogFileName(), MonitorStore.exportEventLog())
+                        }
                     )
+                }
                 }
             }
         }
@@ -186,15 +257,27 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshRadios() {
-        val radios = UsbDeviceFinder.attached(this)
-        val chosen = radios.firstOrNull { it.kind == RadioKind.T2U_PLUS } ?: radios.firstOrNull()
-        if (chosen != null) {
-            MonitorStore.setRadio(chosen.title, chosen.detail, chosen.kind, chosen.canCapture)
-        } else {
-            MonitorStore.setRadio(
-                "No radio",
-                "Plug a TP-Link T2U Plus into the phone with OTG",
-                RadioKind.UNKNOWN,
+        if (MonitorStore.state.value.running) return
+        val option = radioSelection.selected
+        val match = UsbDeviceFinder.attached(this).firstOrNull { it.kind == option.kind }
+            ?: UsbDeviceFinder.attached(this).firstOrNull { UsbIds.matches(option.kind, it.device) }
+        when {
+            match != null -> MonitorStore.setRadio(
+                option.title,
+                match.detail,
+                option.kind,
+                match.canCapture && option.backendReady
+            )
+            option.backendReady -> MonitorStore.setRadio(
+                option.title,
+                "Selected. Plug it in with OTG.",
+                option.kind,
+                false
+            )
+            else -> MonitorStore.setRadio(
+                option.title,
+                "Backend not added yet.",
+                option.kind,
                 false
             )
         }

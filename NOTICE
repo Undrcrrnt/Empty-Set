@@ -9,6 +9,11 @@ shared library inside the APK.
 
 https://github.com/libusb/libusb
 
+A receive-only MediaTek MT7610U path (Panda PAU0A, 0e8d:7610) follows USB,
+MCU, PHY, and RX sequences from Linux mt76x0u (GPL-2.0). Firmware blob
+mediatek/mt7610u.bin is redistributable under
+LICENCE.ralink_a_mediatek_company_firmware.
+
 A binary that links devourer must be distributed under GPL-2.0 and must
-include corresponding source. Empty Set uses devourer only as a receive path.
-Transmit and packet-injection APIs are not called.
+include corresponding source. Empty Set uses these drivers only as a receive
+path. Transmit and packet-injection APIs are not called.

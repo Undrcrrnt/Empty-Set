@@ -17,11 +17,14 @@ import com.emptyset.detector.alert.AlertController
 import com.emptyset.detector.detect.AttackDetector
 import com.emptyset.detector.detect.ChannelPlan
 import com.emptyset.detector.detect.Ieee80211
+import com.emptyset.detector.detect.WifiBand
 import com.emptyset.detector.radio.RadioBackend
-import com.emptyset.detector.radio.RadioKind
-import com.emptyset.detector.radio.TplinkT2uBackend
+import com.emptyset.detector.radio.RadioFactory
+import com.emptyset.detector.radio.RadioSelection
 import com.emptyset.detector.radio.UsbDeviceFinder
+import com.emptyset.detector.radio.UsbIds
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -58,28 +61,50 @@ class MonitorService : LifecycleService() {
             return
         }
         MonitorStore.setRunning(true)
-        val chosen = runCatching {
-            UsbDeviceFinder.attached(this).firstOrNull { it.kind == RadioKind.T2U_PLUS }
-        }.getOrNull()
-        if (chosen?.device == null) {
-            MonitorStore.setStatus("No TP-Link T2U Plus attached")
-            MonitorStore.addEvent("Connect the T2U Plus with a USB-OTG cable")
+        MonitorStore.clearEvents()
+        val option = RadioSelection(this).selected
+        if (!option.backendReady) {
+            MonitorStore.setRadio(option.title, option.detail, option.kind, false)
+            MonitorStore.setStatus("${option.title}: backend not added yet")
+            MonitorStore.addEvent("Selected adapter has no receive backend in this build")
             return
         }
-        MonitorStore.setRadio(chosen.title, chosen.detail, chosen.kind, chosen.canCapture)
+        val attached = runCatching { UsbDeviceFinder.attached(this) }.getOrDefault(emptyList())
+        val chosen = attached.firstOrNull { it.kind == option.kind }
+            ?: attached.firstOrNull { info -> UsbIds.matches(option.kind, info.device) }
+        if (chosen?.device == null) {
+            MonitorStore.setRadio(option.title, "Selected. Plug it in with OTG.", option.kind, false)
+            MonitorStore.setStatus("${option.title} not attached")
+            MonitorStore.addEvent("Connect ${option.title} with a USB-OTG cable")
+            return
+        }
+        val opened = RadioFactory.create(this, option, chosen.device)
+        if (opened == null) {
+            MonitorStore.setRadio(option.title, option.detail, option.kind, false)
+            MonitorStore.setStatus("${option.title}: backend not added yet")
+            MonitorStore.addEvent("Selected adapter has no receive backend in this build")
+            return
+        }
+        MonitorStore.setRadio(option.title, chosen.detail, option.kind, chosen.canCapture)
         log.onRecordingSaved = { path ->
             MonitorStore.addEvent("Saved $path", force = true)
         }
         backend?.stop()
-        backend = TplinkT2uBackend(this, chosen.device)
+        backend = opened
         hopJob?.cancel()
         val handler = CoroutineExceptionHandler { _, e ->
             MonitorStore.setStatus("Monitor failed: ${e.message ?: e.javaClass.simpleName}")
             MonitorStore.addEvent("Monitor crashed: ${e.message ?: e.javaClass.simpleName}")
         }
-        hopJob = lifecycleScope.launch(handler) {
+        hopJob = lifecycleScope.launch(Dispatchers.IO + handler) {
             try {
-                launch { sweepClock(ChannelPlan.hopset(band24 = true, band5 = true).size) }
+                val hops = ChannelPlan.hopsetFor(
+                    option.kind,
+                    RadioSelection(this@MonitorService).band24,
+                    RadioSelection(this@MonitorService).band5,
+                    RadioSelection(this@MonitorService).band6
+                )
+                launch { sweepClock(hops.size.coerceAtLeast(1)) }
                 backend?.start(listener)
             } catch (t: Throwable) {
                 MonitorStore.setStatus("Monitor failed: ${t.message ?: t.javaClass.simpleName}")
@@ -94,9 +119,9 @@ class MonitorService : LifecycleService() {
             MonitorStore.addEvent(message)
         }
 
-        override fun onChannel(channel: Int) {
+        override fun onChannel(channel: Int, band: WifiBand) {
             detector.onChannel(channel)
-            MonitorStore.setChannel(channel)
+            MonitorStore.setChannel(channel, band)
         }
 
         override fun onRawFrame(frame: ByteArray, channel: Int?, rssiDbm: Int?) {
@@ -127,11 +152,14 @@ class MonitorService : LifecycleService() {
             when {
                 result.started -> {
                     log.startAttempt(windowStart)
+                    val snap = MonitorStore.state.value
+                    val summary = "${result.packetsPerSweep} frames  ch=${snap.channel ?: "?"}  ${snap.band?.label ?: ""}"
+                    MonitorStore.latchAlert(summary)
                     MonitorStore.addEvent("DEAUTH ATTEMPT  ${result.packetsPerSweep} frames/sweep", force = true)
                     mainHandler.post {
                         alerts.startAttack(
                             "${result.packetsPerSweep} deauth/disassoc frames in one sweep",
-                            MonitorStore.state.value.channel
+                            snap.channel
                         )
                     }
                 }

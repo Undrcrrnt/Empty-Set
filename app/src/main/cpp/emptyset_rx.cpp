@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <cstdio>
 #include <exception>
 #include <memory>
 #include <mutex>
@@ -15,6 +16,7 @@
 #include "RxPacket.h"
 #include "SelectedChannel.h"
 #include "UsbOpen.h"
+#include "UsbTransport.h"
 #include "WiFiDriver.h"
 #include "logger.h"
 
@@ -178,6 +180,7 @@ Java_com_emptyset_detector_radio_NativeRx_nativeStart(
             g_handle = nullptr;
             return env->NewStringUTF("libusb_wrap_sys_device failed");
         }
+        libusb_set_auto_detach_kernel_driver(g_handle, 1);
 
         auto logger = std::make_shared<Logger>();
         g_iface = devourer::find_wifi_interface(g_handle);
@@ -195,11 +198,24 @@ Java_com_emptyset_detector_radio_NativeRx_nativeStart(
         cfg.usb.lock_dir = lock_path;
         cfg.usb.rx_zerocopy = false;
 
+        uint8_t chip_id = 0;
+        const int chip_rc = libusb_control_transfer(
+            g_handle, REALTEK_USB_VENQT_READ, 5, 0x00FC, 0, &chip_id, 1, USB_TIMEOUT);
+        if (chip_rc != 1) {
+            close_usb_locked();
+            return env->NewStringUTF(
+                "SYS_CFG2 chip-id read failed. Unplug, grant USB, and start again. The T2U Plus should enumerate as 2357:0120.");
+        }
+
         WiFiDriver driver(logger);
         g_radio = driver.CreateRadio(g_handle, g_ctx, g_lock, cfg);
         if (!g_radio) {
             close_usb_locked();
-            return env->NewStringUTF("CreateRadio returned null (chip not Jaguar1/8821AU?)");
+            char msg[96];
+            std::snprintf(msg, sizeof(msg),
+                          "CreateRadio failed after chip-id 0x%02x (need Jaguar1 0x04/0x05/0x08)",
+                          chip_id);
+            return env->NewStringUTF(msg);
         }
 
         const uint8_t start_ch = static_cast<uint8_t>(channel <= 0 ? 1 : channel);

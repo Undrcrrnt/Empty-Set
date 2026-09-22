@@ -1,0 +1,15 @@
+<resources>
+    <style name="Theme.EmptySet" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#FF050807</item>
+        <item name="android:navigationBarColor">#FF050807</item>
+        <item name="android:windowBackground">#FF000000</item>
+        <item name="android:colorBackground">#FF000000</item>
+        <item name="android:textColor">#FF7CFF9A</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:forceDarkAllowed">true</item>
+        <item name="android:windowSplashScreenBackground">#FF000000</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#FF000000</item>
+        <item name="android:windowSplashScreenAnimationDuration">0</item>
+    </style>
+</resources>

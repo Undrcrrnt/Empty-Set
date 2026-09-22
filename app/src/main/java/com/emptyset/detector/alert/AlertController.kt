@@ -90,15 +90,18 @@ class AlertController(private val context: Context) {
             0,
             Intent(context, IncomingAlertActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                .putExtra(IncomingAlertActivity.EXTRA_CHANNEL, channel ?: -1),
+                .putExtra(IncomingAlertActivity.EXTRA_CHANNEL, channel ?: -1)
+                .putExtra(IncomingAlertActivity.EXTRA_MESSAGE, settings.lockScreenMessage)
+                .putExtra(IncomingAlertActivity.EXTRA_SENDER, settings.senderName),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+        settings.applySenderLabel()
         val builder = NotificationCompat.Builder(
             context,
             if (silenced) settings.silentChannelId else settings.channelId
         )
             .setSmallIcon(R.drawable.ic_stat_notify)
-            .setContentTitle("Incoming Deauthentication")
+            .setContentTitle(settings.lockScreenMessage)
             .setContentText(detail)
             .setStyle(NotificationCompat.BigTextStyle().bigText(detail))
             .setPriority(if (silenced) NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_MAX)
@@ -114,6 +117,7 @@ class AlertController(private val context: Context) {
             .setVibrate(null)
             .addAction(0, "Silence", silence)
             .addAction(0, "Stop recording", stop)
+        builder.extras.putCharSequence("android.substName", settings.senderName)
         if (!silenced && shouldLaunchLockScreen()) {
             builder.setFullScreenIntent(lockScreen, true)
         }

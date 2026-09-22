@@ -85,6 +85,14 @@ target_compile_options(devourer PRIVATE
 )
 target_link_libraries(devourer PUBLIC usb-1.0 log)
 
-add_library(emptyset_rx SHARED emptyset_rx.cpp)
+add_library(emptyset_rx SHARED
+    emptyset_rx.cpp
+    emptyset_mt76.cpp
+    mt7610u/usb.cpp
+    mt7610u/mcu.cpp
+    mt7610u/fw.cpp
+    mt7610u/radio.cpp
+)
+target_include_directories(emptyset_rx PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(emptyset_rx PRIVATE devourer usb-1.0 log android)
 target_compile_options(emptyset_rx PRIVATE -fexceptions -frtti)

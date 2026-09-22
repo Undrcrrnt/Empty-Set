@@ -43,6 +43,29 @@ class AlertSettings(context: Context) {
             rebuildChannelAsync()
         }
 
+    var lockScreenMessageInput: String
+        get() = prefs.getString(KEY_MESSAGE, DEFAULT_MESSAGE) ?: DEFAULT_MESSAGE
+        set(value) {
+            prefs.edit().putString(KEY_MESSAGE, value).apply()
+        }
+
+    var senderNameInput: String
+        get() = prefs.getString(KEY_SENDER, DEFAULT_SENDER) ?: DEFAULT_SENDER
+        set(value) {
+            prefs.edit().putString(KEY_SENDER, value).apply()
+            applySenderLabel()
+        }
+
+    val lockScreenMessage: String
+        get() = lockScreenMessageInput.trim().ifBlank { DEFAULT_MESSAGE }
+
+    val senderName: String
+        get() = senderNameInput.trim().ifBlank { DEFAULT_SENDER }
+
+    fun applySenderLabel() {
+        app.applicationInfo.nonLocalizedLabel = senderName
+    }
+
     val vibrate: Boolean
         get() = true
 
@@ -95,7 +118,7 @@ class AlertSettings(context: Context) {
             app.getString(R.string.alert_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Incoming Deauthentication"
+            description = lockScreenMessage
             lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             enableVibration(false)
             setBypassDnd(true)
@@ -107,7 +130,7 @@ class AlertSettings(context: Context) {
             app.getString(R.string.alert_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = "Incoming Deauthentication (sound off)"
+            description = "$lockScreenMessage (sound off)"
             lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             enableVibration(false)
             setSound(null, null)
@@ -117,8 +140,12 @@ class AlertSettings(context: Context) {
     }
 
     companion object {
+        const val DEFAULT_MESSAGE = "Incoming Deauthentication"
+        const val DEFAULT_SENDER = "Empty Set"
         private const val KEY_MODE = "sound_mode"
         private const val KEY_RINGTONE = "ringtone_uri"
         private const val KEY_CUSTOM = "custom_uri"
+        private const val KEY_MESSAGE = "lock_message"
+        private const val KEY_SENDER = "sender_name"
     }
 }

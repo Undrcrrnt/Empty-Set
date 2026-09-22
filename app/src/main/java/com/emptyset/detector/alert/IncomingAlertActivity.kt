@@ -52,13 +52,23 @@ class IncomingAlertActivity : ComponentActivity() {
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
         )
+        val settings = AlertSettings(this)
         val channel = intent.getIntExtra(EXTRA_CHANNEL, -1).takeIf { it > 0 }
+        val message = intent.getStringExtra(EXTRA_MESSAGE)
+            ?.ifBlank { null }
+            ?: settings.lockScreenMessage
+        val sender = intent.getStringExtra(EXTRA_SENDER)
+            ?.ifBlank { null }
+            ?: settings.senderName
+        title = message
         setContent {
             EmptySetTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
                     CodecFrequencyDisplay(
                         modifier = Modifier.fillMaxSize(),
-                        channel = channel
+                        channel = channel,
+                        headline = message,
+                        senderName = sender
                     )
                     Column(
                         modifier = Modifier
@@ -138,6 +148,8 @@ class IncomingAlertActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_CHANNEL = "channel"
+        const val EXTRA_MESSAGE = "message"
+        const val EXTRA_SENDER = "sender"
         private var current: WeakReference<IncomingAlertActivity>? = null
 
         fun dismissIfPresent() {

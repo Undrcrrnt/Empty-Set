@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +35,7 @@ fun HistoryScreen(
     onOpen: (String) -> Unit,
     onExportJson: () -> Unit,
     onExportCsv: () -> Unit,
+    onDelete: (String) -> Unit,
     onClear: () -> Unit
 ) {
     Column(
@@ -66,7 +68,11 @@ fun HistoryScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(attempts, key = { it.id }) { attempt ->
-                    AttemptRow(attempt, onClick = { onOpen(attempt.id) })
+                    AttemptRow(
+                        attempt = attempt,
+                        onClick = { onOpen(attempt.id) },
+                        onDelete = { onDelete(attempt.id) }
+                    )
                 }
             }
         }
@@ -79,7 +85,8 @@ fun AttemptDetailScreen(
     frames: List<CapturedFrame>,
     onBack: () -> Unit,
     onExportJson: () -> Unit,
-    onExportCsv: () -> Unit
+    onExportCsv: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -93,6 +100,10 @@ fun AttemptDetailScreen(
             SmallButton("BACK", onBack, Modifier.weight(1f))
             SmallButton("JSON", onExportJson, Modifier.weight(1f))
             SmallButton("CSV", onExportCsv, Modifier.weight(1f))
+        }
+        if (attempt != null) {
+            Spacer(Modifier.height(8.dp))
+            SmallButton("DELETE RECORD", onDelete, Modifier.fillMaxWidth(), alert = true)
         }
         Spacer(Modifier.height(14.dp))
         if (attempt == null) {
@@ -124,29 +135,36 @@ fun AttemptDetailScreen(
 }
 
 @Composable
-private fun AttemptRow(attempt: CaptureAttempt, onClick: () -> Unit) {
-    Column(
+private fun AttemptRow(attempt: CaptureAttempt, onClick: () -> Unit, onDelete: () -> Unit) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Panel, RoundedCornerShape(4.dp))
-            .border(1.dp, Line, RoundedCornerShape(4.dp))
-            .clickable(onClick = onClick)
-            .padding(12.dp)
+            .border(1.dp, Line, RoundedCornerShape(4.dp)),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("Deauth Notification", color = Phosphor, fontFamily = FontFamily.Monospace, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Text(CaptureLog.displayTime(attempt.startedAtMs), color = Phosphor, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-        Text(
-            "${attempt.frameCount} frames  ${attempt.bands.joinToString("/")}  ch ${attempt.channels.sorted().joinToString(",")}",
-            color = Dim,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp
-        )
-        Text(
-            "src ${attempt.sources.firstOrNull() ?: "--"}",
-            color = Phosphor,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp
-        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onClick)
+                .padding(12.dp)
+        ) {
+            Text("Deauth Notification", color = Phosphor, fontFamily = FontFamily.Monospace, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(CaptureLog.displayTime(attempt.startedAtMs), color = Phosphor, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+            Text(
+                "${attempt.frameCount} frames  ${attempt.bands.joinToString("/")}  ch ${attempt.channels.sorted().joinToString(",")}",
+                color = Dim,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            Text(
+                "src ${attempt.sources.firstOrNull() ?: "--"}",
+                color = Phosphor,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+        }
+        SmallButton("DEL", onDelete, Modifier.padding(end = 8.dp), alert = true)
     }
 }
 

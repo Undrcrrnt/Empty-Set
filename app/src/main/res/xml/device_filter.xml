@@ -2,7 +2,9 @@
 <resources>
     <!-- TP-Link Archer T2U Plus (RTL8821AU) -->
     <usb-device vendor-id="9047" product-id="288" />
-    <!-- Generic Realtek 8821AU -->
-    <usb-device vendor-id="3034" product-id="2065" />
-    <usb-device vendor-id="3034" product-id="2081" />
+    <!-- Realtek ZeroCD installer mode 0bda:1a2b -->
+    <usb-device vendor-id="3034" product-id="6699" />
+    <!-- Panda PAU0A / PAU0B MediaTek MT7610U 0e8d:7610, 148f:7610 -->
+    <usb-device vendor-id="3725" product-id="30224" />
+    <usb-device vendor-id="5263" product-id="30224" />
 </resources>

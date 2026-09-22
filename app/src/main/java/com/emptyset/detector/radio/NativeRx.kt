@@ -28,5 +28,6 @@ object NativeRx {
         fun onFrame(frame: ByteArray, rssi: Int, channel: Int)
         fun onReady()
         fun onNativeError(message: String)
+        fun onStatus(message: String) {}
     }
 }

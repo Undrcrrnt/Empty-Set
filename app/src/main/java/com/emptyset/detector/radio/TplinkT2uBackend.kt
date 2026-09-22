@@ -8,6 +8,8 @@ import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import android.os.Build
 import com.emptyset.detector.detect.ChannelPlan
+import com.emptyset.detector.detect.HopChannel
+import com.emptyset.detector.detect.WifiBand
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -24,15 +26,17 @@ import java.util.concurrent.Executors
 class TplinkT2uBackend(
     private val context: Context,
     private val device: UsbDevice,
+    private val option: RadioOption = RadioCatalog.option(RadioCatalog.T2U_PLUS),
     private val hop24: Boolean = true,
     private val hop5: Boolean = true,
+    private val hop6: Boolean = false,
     private val dwellMs: Long = 140
 ) : RadioBackend {
 
     override val info: RadioInfo = RadioInfo(
-        kind = RadioKind.T2U_PLUS,
-        title = "TP-Link T2U Plus",
-        detail = "RTL8821AU  %04x:%04x".format(device.vendorId, device.productId),
+        kind = option.kind,
+        title = option.title,
+        detail = "%s  %04x:%04x".format(option.detail, device.vendorId, device.productId),
         device = device,
         canCapture = NativeRx.available()
     )
@@ -57,7 +61,7 @@ class TplinkT2uBackend(
                 flags
             )
             usb.requestPermission(device, permissionIntent)
-            listener.onError("USB permission requested for T2U Plus. Grant it and start again.")
+            listener.onError("USB permission requested for ${option.title}. Grant it and start again.")
             return
         }
         running = true
@@ -66,15 +70,18 @@ class TplinkT2uBackend(
             Thread(task, "t2u-rx").apply { isDaemon = true }
         }
         deliver = exec
-        val channels = ChannelPlan.hopset(hop24, hop5)
+        val channels = ChannelPlan.hopsetFor(option.kind, hop24, hop5, hop6)
         if (channels.isEmpty()) {
-            listener.onError("No channels selected")
+            listener.onError("No tunable channels for the selected bands")
             return
+        }
+        if (hop6 && channels.none { it.band == WifiBand.GHZ_6 }) {
+            listener.onStatus("6 GHz is selected; this adapter tunes 2.4/5 GHz only")
         }
 
         if (!NativeRx.available()) {
             listener.onError(
-                "Native RTL8821AU RX library is missing from this APK (64-bit build required)."
+                "Native Jaguar1 RX library is missing from this APK (64-bit build required)."
             )
             hopOnly(listener, channels)
             return
@@ -82,14 +89,14 @@ class TplinkT2uBackend(
 
         val opened = usb.openDevice(device)
         if (opened == null) {
-            listener.onError("Could not open T2U Plus USB device")
+            listener.onError("Could not open ${option.title} USB device")
             running = false
             return
         }
         connection = opened
         val fd = opened.fileDescriptor
         val lockDir = context.cacheDir.absolutePath
-        listener.onStatus("Loading RTL8821AU firmware (receive-only)...")
+        listener.onStatus("Loading ${option.title} firmware (receive-only)...")
         val sink = object : NativeRx.Sink {
             override fun onFrame(frame: ByteArray, rssi: Int, channel: Int) {
                 if (!running) return
@@ -100,7 +107,7 @@ class TplinkT2uBackend(
             }
 
             override fun onReady() {
-                exec.execute { listener.onStatus("T2U firmware running, starting monitor RX...") }
+                exec.execute { listener.onStatus("${option.title} firmware running, starting monitor RX...") }
             }
 
             override fun onNativeError(message: String) {
@@ -109,30 +116,31 @@ class TplinkT2uBackend(
             }
         }
         val err = runCatching {
-            NativeRx.nativeStart(fd, lockDir, channels.first(), sink)
+            NativeRx.nativeStart(fd, lockDir, channels.first().channel, sink)
         }.getOrElse { crash ->
             "Driver failed to start: ${crash.message ?: crash.javaClass.simpleName}"
         }
         if (!err.isNullOrEmpty()) {
             runCatching { NativeRx.nativeStop() }
+            releaseInterfaces()
             connection?.close()
             connection = null
+            running = false
             listener.onError(err)
-            hopOnly(listener, channels)
             return
         }
-        listener.onChannel(channels.first())
+        listener.onChannel(channels.first().channel, channels.first().band)
         delay(2800)
         if (!running || !currentCoroutineContext().isActive) {
             stopNative()
             return
         }
-        listener.onStatus("T2U Plus monitor RX active on 2.4/5 GHz (receive-only)")
+        listener.onStatus("${option.title} monitor RX active (receive-only)")
         var index = 0
         while (running && currentCoroutineContext().isActive) {
-            val ch = channels[index]
-            NativeRx.nativeSetChannel(ch)
-            listener.onChannel(ch)
+            val hop = channels[index]
+            NativeRx.nativeSetChannel(hop.channel)
+            listener.onChannel(hop.channel, hop.band)
             delay(dwellMs)
             index = (index + 1) % channels.size
             yield()
@@ -140,19 +148,28 @@ class TplinkT2uBackend(
         stopNative()
     }
 
-    private suspend fun hopOnly(listener: RadioBackend.Listener, channels: List<Int>) {
+    private suspend fun hopOnly(listener: RadioBackend.Listener, channels: List<HopChannel>) {
         var index = 0
         while (running && currentCoroutineContext().isActive) {
-            listener.onChannel(channels[index])
+            val hop = channels[index]
+            listener.onChannel(hop.channel, hop.band)
             delay(dwellMs)
             index = (index + 1) % channels.size
             yield()
         }
     }
 
+    private fun releaseInterfaces() {
+        val opened = connection ?: return
+        for (index in 0 until device.interfaceCount) {
+            runCatching { opened.releaseInterface(device.getInterface(index)) }
+        }
+    }
+
     @Synchronized
     private fun stopNative() {
         runCatching { NativeRx.nativeStop() }
+        releaseInterfaces()
         connection?.close()
         connection = null
     }

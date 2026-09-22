@@ -15,7 +15,10 @@ class EmptySetApp : Application() {
     override fun onCreate() {
         super.onCreate()
         captureLog = CaptureLog(this)
-        AlertSettings(this).rebuildChannel()
+        AlertSettings(this).apply {
+            applySenderLabel()
+            rebuildChannel()
+        }
         createChannels()
     }
 
